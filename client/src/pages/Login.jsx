@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, User, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "", role: "member" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { login } = useAuth();
@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     setError("");
     try {
-      await login(form.email, form.password);
+      await login(form.email, form.password, form.role);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Check your credentials.");
@@ -79,6 +79,36 @@ export default function Login() {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-400 ml-1">Account Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, role: "member" })}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${
+                    form.role === "member"
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+                      : "border-white/10 hover:bg-white/5 text-slate-400"
+                  }`}
+                >
+                  <User size={16} />
+                  Member
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, role: "admin" })}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${
+                    form.role === "admin"
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+                      : "border-white/10 hover:bg-white/5 text-slate-400"
+                  }`}
+                >
+                  <Shield size={16} />
+                  Admin
+                </button>
               </div>
             </div>
 

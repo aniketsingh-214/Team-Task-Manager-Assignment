@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 exports.signup = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
 
   try {
     const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -14,6 +14,29 @@ exports.signup = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    if (role === 'admin') {
+      const existingAdmins = await pool.query("SELECT * FROM admins");
+      if (existingAdmins.rows.length > 0) {
+        return res.status(400).json({ message: "This operation is not allowed. Only one admin is permitted." });
+      }
+
+      const newAdmin = await pool.query(
+        "INSERT INTO admins (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
+        [name, email, hashedPassword]
+      );
+
+      const token = jwt.sign(
+        { id: newAdmin.rows[0].id, role: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return res.status(201).json({ 
+        user: { ...newAdmin.rows[0], role: 'admin' }, 
+        token 
+      });
+    }
 
     const newUser = await pool.query(
       "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
@@ -37,42 +60,42 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
-    // 1. Check Admins Table First
-    const adminResult = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
-    if (adminResult.rows.length > 0) {
-      const admin = adminResult.rows[0];
-      const isMatch = await bcrypt.compare(password, admin.password);
-      if (isMatch) {
-        const token = jwt.sign(
-          { id: admin.id, role: 'admin' },
-          process.env.JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-        return res.json({
-          user: { id: admin.id, name: admin.name, email: admin.email, role: 'admin' },
-          token
-        });
+    if (role === 'admin') {
+      const adminResult = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
+      if (adminResult.rows.length > 0) {
+        const admin = adminResult.rows[0];
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (isMatch) {
+          const token = jwt.sign(
+            { id: admin.id, role: 'admin' },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+          return res.json({
+            user: { id: admin.id, name: admin.name, email: admin.email, role: 'admin' },
+            token
+          });
+        }
       }
-    }
-
-    // 2. Check Users Table
-    const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (userResult.rows.length > 0) {
-      const user = userResult.rows[0];
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (isMatch) {
-        const token = jwt.sign(
-          { id: user.id, role: 'member' },
-          process.env.JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-        return res.json({
-          user: { id: user.id, name: user.name, email: user.email, role: 'member' },
-          token
-        });
+    } else {
+      const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (isMatch) {
+          const token = jwt.sign(
+            { id: user.id, role: 'member' },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+          return res.json({
+            user: { id: user.id, name: user.name, email: user.email, role: 'member' },
+            token
+          });
+        }
       }
     }
 
