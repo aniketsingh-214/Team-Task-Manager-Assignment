@@ -1,5 +1,12 @@
 [build]
+<<<<<<< HEAD
 builder = "NIXPACKS"
 
 [deploy]
 startCommand = "npm install && npm start"
+=======
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm start"
+>>>>>>> 5a3d4b206502cc3dd8b1e4718fffa36dfba02e08
